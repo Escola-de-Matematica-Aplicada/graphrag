@@ -16,6 +16,15 @@ Reproduzido/validado em produção real: ver
 `edge-label-patch.md` (contexto completo) e a seção "Validação recomendada"
 lá para o roteiro de teste.
 
+**Status (2026-09-22)**: não reportado upstream. `microsoft/graphrag` está
+em modo de manutenção ("won't be implementing new features, but we are
+accepting PRs for bug fixes" — `CONTRIBUTING.md`) e este achado é uma
+feature nova, não um bugfix — provavelmente seria rejeitado de cara. PR
+direto também está bloqueado (restrito a colaboradores). Ver
+`PR-COMMUNITY-REPORTS-SCHEMA.md` para o achado irmão que *foi* reportado
+(issue #2571, por se encaixar como bugfix). Branch `upstream-pr/edge-label`
+mantida no fork (`origin`) caso a política mude ou surja outro canal.
+
 ---
 
 ## Summary

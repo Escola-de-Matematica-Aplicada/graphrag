@@ -15,6 +15,19 @@ Achado original portado de `matematica-na-industria/.skills/graphrag/`
 `gpt-oss-20b`). Ver `PR-EDGE-LABEL.md` para o precedente deste formato de
 documento neste fork.
 
+**Status (2026-09-22)**: PR direto neste repo está bloqueado —
+`microsoft/graphrag` restringe criação de PR a colaboradores ("An owner of
+this repository has limited the ability to open a pull request to users
+that are collaborators on this repository"), e o `CONTRIBUTING.md` deles
+pede para abrir issue antes de PR mesmo quando isso não se aplica. Como
+este achado é um bugfix (não uma feature nova, que eles disseram não
+aceitar mais), abri a issue
+**https://github.com/microsoft/graphrag/issues/2571** com a descrição
+completa do bug + a correção pronta, oferecendo o diff/PR se um
+mantenedor habilitar isso. O achado de edge-label (`PR-EDGE-LABEL.md`) não
+foi reportado — é uma feature nova, fora da política atual de "manutenção"
+do projeto ("won't be implementing new features").
+
 ---
 
 ## Title
