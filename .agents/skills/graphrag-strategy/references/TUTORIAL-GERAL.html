@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial Geral — GraphRAG do Zero</title>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f6f7f9; --surface-2:#eceef2; --border:#d7dbe2;
+    --text:#1c2128; --text-muted:#57606a; --accent:#8250df; --accent-strong:#6639ba;
+    --accent-soft:#f2ebfd; --code-bg:#f6f7f9; --code-text:#24292f;
+    --bug-bg:#fff1f0; --bug-border:#f5a3a0; --bug-text:#82241f;
+    --caveat-bg:#fff8e6; --caveat-border:#f0c766; --caveat-text:#6b4e08;
+    --tip-bg:#ecfdf3; --tip-border:#86e0ac; --tip-text:#155f36;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d1117; --surface:#161b22; --surface-2:#1c2129; --border:#30363d;
+      --text:#e6edf3; --text-muted:#9198a1; --accent:#a371f7; --accent-strong:#c297ff;
+      --accent-soft:#26193f; --code-bg:#161b22; --code-text:#e6edf3;
+      --bug-bg:#2a1516; --bug-border:#7d2a26; --bug-text:#ff9a94;
+      --caveat-bg:#2b230d; --caveat-border:#7a5c12; --caveat-text:#f0c766;
+      --tip-bg:#0f2318; --tip-border:#2e6b47; --tip-text:#7ee2a8;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; font-size:16px;
+  }
+  .layout{display:flex; max-width:1180px; margin:0 auto;}
+  nav.toc{
+    width:250px; flex:none; position:sticky; top:0; align-self:flex-start;
+    max-height:100vh; overflow-y:auto; padding:28px 18px 40px 24px;
+    border-right:1px solid var(--border);
+  }
+  nav.toc h2{font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin:0 0 12px;}
+  nav.toc ol{list-style:none; margin:0; padding:0; counter-reset:toc;}
+  nav.toc li{counter-increment:toc; margin:0 0 6px;}
+  nav.toc a{
+    color:var(--text); text-decoration:none; font-size:13.5px; display:block;
+    padding:3px 0;
+  }
+  nav.toc a::before{content:counter(toc) ". "; color:var(--accent); font-weight:600;}
+  nav.toc a:hover{color:var(--accent-strong);}
+  main{flex:1; padding:36px 44px 100px; max-width:900px;}
+  header.hero{margin-bottom:36px;}
+  header.hero p.kicker{
+    text-transform:uppercase; letter-spacing:.1em; font-size:12px; color:var(--accent);
+    font-weight:700; margin:0 0 10px;
+  }
+  h1{font-size:32px; line-height:1.2; margin:0 0 14px; text-wrap:balance;}
+  header.hero p.lead{font-size:17px; color:var(--text-muted); max-width:70ch;}
+  section{margin:52px 0; scroll-margin-top:20px;}
+  section h2{
+    font-size:23px; margin:0 0 6px; padding-bottom:10px; border-bottom:2px solid var(--accent);
+    display:inline-block;
+  }
+  section > p.phase-sub{color:var(--text-muted); margin:8px 0 20px; font-size:14.5px;}
+  h3{font-size:18px; margin:28px 0 10px;}
+  p{margin:0 0 14px; max-width:72ch;}
+  ul, ol.normal{margin:0 0 14px; padding-left:22px;}
+  ul li, ol.normal li{margin-bottom:6px;}
+  code{
+    font-family:ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace;
+    background:var(--code-bg); color:var(--code-text); padding:2px 5px; border-radius:3px;
+    font-size:.9em; border:1px solid var(--border);
+  }
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:6px;
+    padding:14px 16px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:0 0 16px;
+  }
+  pre code{background:none; border:none; padding:0; font-size:1em;}
+  table{border-collapse:collapse; width:100%; margin:0 0 20px; font-size:14px;}
+  table{display:block; overflow-x:auto;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top;}
+  th{background:var(--surface-2); font-weight:600;}
+  tbody tr:nth-child(even){background:var(--surface);}
+  .box{border-left:4px solid; border-radius:0 6px 6px 0; padding:14px 16px; margin:0 0 18px;}
+  .box p:last-child{margin-bottom:0;}
+  .box .box-label{font-weight:700; text-transform:uppercase; font-size:11.5px; letter-spacing:.06em; display:block; margin-bottom:6px;}
+  .box.bug{background:var(--bug-bg); border-color:var(--bug-border); color:var(--bug-text);}
+  .box.bug code{border-color:var(--bug-border);}
+  .box.caveat{background:var(--caveat-bg); border-color:var(--caveat-border); color:var(--caveat-text);}
+  .box.caveat code{border-color:var(--caveat-border);}
+  .box.tip{background:var(--tip-bg); border-color:var(--tip-border); color:var(--tip-text);}
+  .box.tip code{border-color:var(--tip-border);}
+  .box p{color:inherit; max-width:none;}
+  .example{
+    background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding:12px 16px; margin:0 0 16px; font-size:14px;
+  }
+  .example .example-label{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; display:block; margin-bottom:6px;}
+  footer{border-top:1px solid var(--border); margin-top:60px; padding-top:20px; font-size:13px; color:var(--text-muted);}
+  a{color:var(--accent-strong);}
+  .backtotop{font-size:12.5px;}
+  @media (max-width: 900px){
+    .layout{flex-direction:column;}
+    nav.toc{width:100%; position:static; max-height:none; border-right:none; border-bottom:1px solid var(--border);}
+    main{padding:28px 20px 80px;}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="Sumário">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#intro">Sobre este tutorial</a></li>
+    <li><a href="#visao-geral">Visão geral do pipeline</a></li>
+    <li><a href="#fase0">Fase 0 — Avalie o corpus antes de indexar</a></li>
+    <li><a href="#fase1">Fase 1 — Setup inicial</a></li>
+    <li><a href="#fase2">Fase 2 — Ajustar prompts ao domínio</a></li>
+    <li><a href="#fase3">Fase 3 — Indexação completa</a></li>
+    <li><a href="#fase4">Fase 4 — Consultando o índice</a></li>
+    <li><a href="#checklist">Checklist de bugs conhecidos</a></li>
+    <li><a href="#referencia">Referência rápida de comandos</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="hero" id="intro">
+  <p class="kicker">GraphRAG · Tutorial Geral</p>
+  <h1>Rodando o GraphRAG do zero, em qualquer corpus</h1>
+  <p class="lead">
+    Este tutorial cobre o processo completo — avaliação do corpus, ajuste de
+    prompts, indexação e consulta — usando o pacote <code>graphrag</code>
+    (testado na versão 3.1.1). Cada fase inclui os bugs reais encontrados ao
+    longo de um projeto de indexação, suas causas exatas e as correções
+    aplicadas, além dos caveats que não são óbvios na documentação oficial.
+    Não é específico de um corpus: os exemplos concretos vêm de um projeto
+    real (material de aulas de HPC/computação paralela), mas o procedimento
+    vale para qualquer coleção de documentos.
+  </p>
+</header>
+
+<section id="visao-geral">
+  <h2>Visão geral do pipeline</h2>
+  <p>O processo tem quatro fases, nessa ordem. Pular a Fase 0 é a causa mais comum de reindexações caras e repetidas.</p>
+  <table>
+    <thead><tr><th>Fase</th><th>O que faz</th><th>Custo de LLM</th><th>Reversível?</th></tr></thead>
+    <tbody>
+      <tr><td>0 — Avaliação</td><td>Índice estrutural (entidades/comunidades) sem LLM, pra ver se o corpus está bem organizado</td><td>Zero</td><td>Sim, rode quantas vezes quiser</td></tr>
+      <tr><td>1 — Setup</td><td><code>graphrag init</code>, <code>settings.yaml</code>, prompts padrão</td><td>Zero</td><td>Sim</td></tr>
+      <tr><td>2 — Prompt-tune</td><td>Adaptar os prompts de extração ao domínio, testado em mini-corpus</td><td>Baixo (poucas chamadas, corpus pequeno)</td><td>Sim, teste isolado antes de aplicar</td></tr>
+      <tr><td>3 — Indexação</td><td><code>graphrag index</code> completo: extração, resumo, comunidades, embeddings</td><td>Alto (uma chamada por chunk/entidade/comunidade)</td><td><strong>Não</strong> — mudar prompt depois invalida o cache inteiro daquela fase</td></tr>
+      <tr><td>4 — Query</td><td><code>graphrag query</code>: local/global/basic/drift</td><td>Médio, por pergunta (sem cache)</td><td>Sim, cada pergunta é independente</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="fase0">
+  <h2>Fase 0 — Avalie o corpus antes de indexar</h2>
+  <p class="phase-sub">Objetivo: saber se o grafo final vai ficar bem distribuído (comunidades de tamanho razoável, sem um "blob" dominante nem fragmentação excessiva) e se o corpus tem lixo/ruído — <strong>sem pagar o custo de LLM da indexação completa.</strong></p>
+
+  <h3>Por que essa fase existe</h3>
+  <p>
+    A indexação completa faz uma chamada de LLM por chunk (extração de
+    entidades) e depois uma por entidade/relação duplicada (resumo de
+    descrições) e uma por comunidade (relatórios). Em um corpus de
+    centenas de arquivos isso são milhares de chamadas e pode levar horas.
+    Descobrir <em>depois</em> desse custo que um arquivo estava "poluindo"
+    o corpus, ou que um subconjunto de documentos ficou isolado do resto do
+    grafo, significa pagar tudo de novo.
+  </p>
+
+  <h3>Como fazer: <code>--method fast</code> com pipeline customizado</h3>
+  <p>
+    O <code>graphrag</code> tem um modo <code>fast</code> nativo que troca a
+    extração de entidades baseada em LLM (<code>extract_graph</code>) por
+    <code>extract_graph_nlp</code>: extração de sintagmas nominais 100%
+    local (regex, sem rede, sem custo). A clusterização de comunidades
+    (<code>create_communities</code>, algoritmo Leiden) é puramente
+    algorítmica e não sabe nem se importa com qual workflow gerou as
+    entidades — então serve como <strong>proxy estrutural válido</strong>
+    para saber a forma do grafo.
+  </p>
+
+  <p>Crie um root de projeto isolado (não reindexe o projeto real por engano) e configure:</p>
+
+  <pre><code>workflows:
+  - load_input_documents
+  - create_base_text_units
+  - create_final_documents
+  - extract_graph_nlp
+  - prune_graph
+  - finalize_graph
+  - create_communities
+  - create_final_text_units
+  # propositalmente SEM create_community_reports_text e generate_text_embeddings
+  # (nenhum dos dois é necessário pra avaliar distribuição, e são as fases
+  # que custam LLM/embeddings)
+
+extract_graph_nlp:
+  text_analyzer:
+    extractor_type: regex_english   # default; não depende de nenhum modelo spaCy instalado</code></pre>
+
+  <p>Rode com:</p>
+  <pre><code>graphrag index --root . --method fast --verbose</code></pre>
+
+  <div class="box bug">
+    <span class="box-label">Detalhe de config fácil de errar</span>
+    <p>
+      O campo <code>workflows:</code> fica no <strong>nível raiz</strong> do
+      <code>settings.yaml</code>, e substitui <em>totalmente</em> a lista
+      padrão do <code>--method</code> escolhido — não é um adicional, é uma
+      troca completa. Se você omitir algum workflow de que os outros
+      dependem (ex. remover <code>create_base_text_units</code> mas manter
+      <code>extract_graph_nlp</code>), o pipeline falha por falta de tabela
+      de entrada.
+    </p>
+  </div>
+
+  <h3>O que avaliar nos resultados</h3>
+  <p>Depois que o índice de preview terminar, ele produz <code>entities.parquet</code>, <code>relationships.parquet</code> e <code>communities.parquet</code> — o suficiente para avaliar distribuição sem nenhum embedding ou relatório de LLM.</p>
+
+  <pre><code>import pandas as pd
+
+c = pd.read_parquet("output/communities.parquet")
+print("Comunidades por nível:")
+print(c["level"].value_counts().sort_index())
+
+print("\nTamanho de comunidade por nível (min/mediana/máx):")
+print(c.groupby("level")["size"].describe()[["min", "50%", "max"]])
+
+print("\nMaiores comunidades no nível 0 (candidatas a blob dominante):")
+print(c[c["level"] == 0].sort_values("size", ascending=False).head(10)[["id", "size"]])</code></pre>
+
+  <p>Sinais a procurar:</p>
+  <ul>
+    <li><strong>Uma comunidade de nível 0 muito maior que as outras</strong> (ordem de grandeza acima das demais) → corpus com um tópico dominante engolindo o resto.</li>
+    <li><strong>Muitas comunidades de tamanho 1-2</strong> → corpus fragmentado; considere aumentar o tamanho do chunk ou revisar se há material desconexo demais.</li>
+    <li><strong>Uma pasta/fonte inteira isolada numa comunidade sem ligação com o resto</strong> → sinal de que esse material pertence a outro domínio e talvez devesse ser um índice separado.</li>
+  </ul>
+
+  <div class="box bug">
+    <span class="box-label">Bug: <code>documents.parquet</code> não guarda o caminho, só o nome do arquivo</span>
+    <p>
+      A coluna <code>title</code> em <code>documents.parquet</code> é só o
+      basename (ex.: <code>"AGENTS.md"</code>), não o caminho relativo. Se
+      você tentar agrupar por pasta de origem fazendo
+      <code>title.str.split("/").str[0]</code>, o resultado não vai fazer
+      sentido — todo arquivo com o mesmo nome em pastas diferentes colapsa
+      junto. Para saber a distribuição real por pasta, refaça a varredura
+      direto no filesystem com o mesmo regex do <code>file_pattern</code>,
+      em vez de depender do parquet:
+    </p>
+  </div>
+
+  <pre><code>import re, pathlib
+from collections import Counter
+
+pat = re.compile(r'&lt;mesmo regex do file_pattern do settings.yaml&gt;')
+base = pathlib.Path("/caminho/do/corpus")
+hits = [(f.stat().st_size, str(f.relative_to(base)))
+        for f in base.rglob("*") if f.is_file() and pat.match(str(f.relative_to(base)))]
+
+print(Counter(r.split('/')[0] if '/' in r else '(raiz)' for _, r in hits).most_common(20))</code></pre>
+
+  <div class="box caveat">
+    <span class="box-label">Caveat: qualidade semântica menor</span>
+    <p>
+      O extrator <code>regex_english</code> é orientado a inglês. Em corpus
+      em outro idioma, ele ainda encontra "sintagmas nominais" (sequências
+      de palavras capitalizadas/repetidas), mas com nomenclatura de
+      entidade mais crua/ruidosa que a extração via LLM tunada. Isso não
+      invalida o preview porque o objetivo aqui é a <strong>forma</strong>
+      da distribuição (tamanho e conectividade de comunidades), não a
+      qualidade de nomenclatura — mas não use esse índice de preview para
+      avaliar qualidade de extração, só estrutura.
+    </p>
+  </div>
+
+  <div class="box tip">
+    <span class="box-label">Achado real de projeto: arquivos de meta-navegação</span>
+    <p>
+      Rodando esse preview num corpus real de ~280 arquivos, descobrimos
+      que <strong>21,7% dos arquivos eram <code>AGENTS.md</code></strong> —
+      documentos de navegação de repositório ("esta pasta contém X, Y, Z"),
+      não conteúdo real. Nenhum <code>file_pattern</code> típico (que só
+      exclui por nome de <em>diretório</em>, como <code>node_modules/</code>
+      ou dotfiles) filtra isso por nome de <em>arquivo</em>. Vale adicionar
+      uma exclusão explícita por nome (<code>AGENTS.md</code>,
+      <code>README.md</code> e afins) se eles não forem conteúdo relevante
+      no seu caso.
+    </p>
+  </div>
+</section>
+
+<section id="fase1">
+  <h2>Fase 1 — Setup inicial</h2>
+  <p class="phase-sub">Objetivo: ter um <code>settings.yaml</code> válido e a pasta <code>prompts/</code> com os arquivos que o pipeline espera.</p>
+
+  <h3><code>graphrag init</code></h3>
+  <pre><code>pip install graphrag
+mkdir -p meu-projeto/input
+graphrag init --root ./meu-projeto</code></pre>
+
+  <div class="box bug">
+    <span class="box-label">Bug: <code>graphrag init</code> é interativo e quebra sem TTY</span>
+    <p>
+      Em ambientes não-interativos (scripts, CI, agentes automatizados),
+      <code>graphrag init</code> pergunta "Specify the default chat model
+      to use [gpt-4.1]:" e aborta com <code>EOFError</code>/"Aborted." se
+      não houver terminal interativo pra responder. Nesse caso, monte a
+      estrutura manualmente: crie <code>settings.yaml</code>,
+      <code>prompts/</code>, <code>cache/</code>, <code>output/</code>,
+      <code>logs/</code> à mão (veja o exemplo completo mais abaixo).
+    </p>
+  </div>
+
+  <h3>Estrutura mínima de <code>settings.yaml</code></h3>
+  <pre><code># concurrent_requests é GLOBAL — ver Fase 3 para o motivo de isso ser crítico
+concurrent_requests: 3
+
+completion_models:
+  default_completion_model:
+    type: litellm
+    model_provider: openai
+    model: &lt;seu-modelo&gt;
+    api_base: &lt;endpoint-do-provedor&gt;
+    auth_method: api_key
+    api_key: ${SUA_API_KEY}
+    rate_limit:
+      type: sliding_window
+      period_in_seconds: 60
+      requests_per_period: 20
+
+embedding_models:
+  default_embedding_model:
+    type: litellm
+    model_provider: openai
+    model: &lt;seu-modelo-de-embedding&gt;
+    api_base: &lt;endpoint&gt;
+    auth_method: api_key
+    api_key: &lt;chave&gt;
+
+vector_store:
+  type: lancedb
+  db_uri: "output/lancedb"
+  vector_size: 1024   # precisa bater com a dimensão real do embedding
+
+input:
+  type: text
+  file_pattern: '.*\.(?:md|txt|text)$$'
+
+input_storage:
+  type: file
+  base_dir: "input"
+
+chunking:
+  type: tokens
+  size: 2400
+  overlap: 100
+
+output_storage:
+  type: file
+  base_dir: "output"
+
+cache:
+  type: json
+  storage:
+    type: file
+    base_dir: "cache"
+
+reporting:
+  type: file
+  base_dir: "logs"</code></pre>
+
+  <h3>Sempre junto: <code>.env</code> e <code>.gitignore</code></h3>
+  <p>
+    A chave de API (<code>${SUA_API_KEY}</code> no <code>settings.yaml</code>)
+    normalmente vem de um arquivo <code>.env</code> no root do projeto, que o
+    <code>graphrag</code> carrega automaticamente. Sempre que copiar um
+    <code>.env</code> para um novo root (por exemplo, ao criar o root de
+    preview da Fase 0), copie também o <code>.gitignore</code> da mesma
+    pasta de origem, se existir — <code>.env</code> guarda segredo e deveria
+    estar sempre pareado com a exclusão do controle de versão.
+  </p>
+
+  <div class="box bug">
+    <span class="box-label">Bug: diretório <code>prompts/</code> ausente ou incompleto</span>
+    <p>
+      Sintoma: <code>Pipeline error: [Errno 2] No such file or directory: 'prompts/extract_graph.txt'</code>
+      na fase <code>extract_graph</code>. Causa: o <code>settings.yaml</code>
+      referencia arquivos de prompt (<code>extract_graph.txt</code>,
+      <code>summarize_descriptions.txt</code>, etc.) que precisam existir em
+      disco — eles não são gerados automaticamente pelo pipeline de
+      indexação, só pelo <code>graphrag init</code> (que pode não ter
+      rodado, ou ter sido interrompido) ou pelo <code>graphrag prompt-tune</code>
+      (Fase 2). Se estiverem faltando, gere os padrões de fábrica via Python:
+    </p>
+  </div>
+
+  <pre><code>python3 -c "
+from graphrag.prompts.index.extract_graph import GRAPH_EXTRACTION_PROMPT
+from graphrag.prompts.index.community_report import COMMUNITY_REPORT_PROMPT
+from graphrag.prompts.index.community_report_text_units import COMMUNITY_REPORT_TEXT_PROMPT
+from graphrag.prompts.index.summarize_descriptions import SUMMARIZE_PROMPT
+from pathlib import Path
+
+Path('prompts').mkdir(exist_ok=True)
+Path('prompts/extract_graph.txt').write_text(GRAPH_EXTRACTION_PROMPT)
+Path('prompts/community_report_graph.txt').write_text(COMMUNITY_REPORT_PROMPT)
+Path('prompts/community_report_text.txt').write_text(COMMUNITY_REPORT_TEXT_PROMPT)
+Path('prompts/summarize_descriptions.txt').write_text(SUMMARIZE_PROMPT)
+"</code></pre>
+
+  <div class="box bug">
+    <span class="box-label">Bug: nomes de arquivo de prompt não batem com o que o config espera</span>
+    <p>
+      O bloco <code>community_reports:</code> do <code>settings.yaml</code>
+      tem dois campos, <code>graph_prompt</code> e <code>text_prompt</code>,
+      apontando para dois arquivos <em>diferentes</em>
+      (<code>community_report_graph.txt</code> e
+      <code>community_report_text.txt</code>). É fácil só criar um dos dois
+      (ou criar com nome errado, como <code>community_reports.txt</code>
+      no singular) e a falha só aparece depois, na fase
+      <code>create_community_reports</code>, com outro
+      <code>FileNotFoundError</code> — geralmente depois de já ter pago o
+      custo de <code>extract_graph</code>. Confirme os dois arquivos
+      existem <em>antes</em> de rodar o índice completo.
+    </p>
+  </div>
+</section>
+
+<section id="fase2">
+  <h2>Fase 2 — Ajustar prompts ao domínio (<code>prompt-tune</code>)</h2>
+  <p class="phase-sub">Objetivo: os prompts padrão de extração são genéricos (tipos de entidade como <code>organization, person, geo, event</code>, em inglês). O <code>prompt-tune</code> gera prompts específicos do seu domínio e idioma, usando exemplos do próprio corpus.</p>
+
+  <h3>O achado mais importante desta fase: você pode testar sem indexar nada</h3>
+  <p>
+    <code>graphrag prompt-tune</code> lê os documentos de entrada
+    <strong>diretamente</strong> via <code>input_storage</code>/<code>input</code>
+    do <code>settings.yaml</code> — o mesmo mecanismo do <code>index</code>,
+    mas fazendo o próprio chunking e amostragem, sem depender de nenhum
+    <code>output/*.parquet</code> ou <code>cache/</code> pré-existente. Ou
+    seja: dá pra rodar como o <em>primeiro</em> comando em um root
+    totalmente vazio.
+  </p>
+
+  <div class="box caveat">
+    <span class="box-label">Caveat: isso só vale para os prompts de indexação</span>
+    <p>
+      Uma vez que você decide aplicar o prompt tunado e rodar o índice
+      completo de verdade, qualquer mudança de texto no prompt invalida o
+      cache daquela fase por inteiro — o conteúdo do prompt entra no hash
+      da chave de cache. Não tem meio-termo: teste antes num corpus pequeno
+      (recomendado abaixo), ou pague o reprocessamento completo depois de
+      mudar o prompt no índice grande.
+    </p>
+  </div>
+
+  <h3>Fluxo recomendado: mini-corpus isolado</h3>
+  <ol class="normal">
+    <li>Copie um subconjunto pequeno e coerente do corpus real (algumas centenas de KB a poucos MB) para um root de teste separado, excluindo meta-arquivos de navegação (tipo <code>AGENTS.md</code>).</li>
+    <li>Monte um <code>settings.yaml</code> mínimo apontando pra essa pasta.</li>
+    <li>Rode:
+      <pre><code>graphrag prompt-tune \
+  --root . \
+  --language &lt;idioma&gt; \
+  --domain "&lt;descrição do domínio + o que você quer FAZER com o conteúdo depois&gt;" \
+  --chunk-size 2400 \
+  --selection-method auto \
+  --limit 20 \
+  --min-examples-required 3 \
+  --discover-entity-types \
+  --verbose</code></pre>
+    </li>
+    <li>Inspecione os prompts gerados em <code>prompts/</code> antes de aplicar ao índice grande.</li>
+  </ol>
+
+  <p>Notas sobre as flags:</p>
+  <ul>
+    <li><code>--domain</code> deve descrever não só o assunto, mas <strong>o que você quer fazer com o conteúdo depois</strong> — isso molda a persona embutida no prompt de <code>community_reports</code>, que é o que mais influencia a qualidade das respostas de síntese depois.</li>
+    <li><code>--discover-entity-types</code> deixa o modelo descobrir tipos de entidade específicos do corpus em vez de reusar uma lista genérica fixa — normalmente produz extração mais relevante.</li>
+    <li><code>--selection-method auto</code> usa embeddings pra escolher chunks representativos do corpus inteiro (em vez de <code>random</code> ou os primeiros <code>top</code>).</li>
+  </ul>
+
+  <div class="box bug">
+    <span class="box-label">Bug: <code>prompt-tune</code> nunca gera <code>community_report_text.txt</code></span>
+    <p>
+      Ele só produz três arquivos: <code>extract_graph.txt</code>,
+      <code>summarize_descriptions.txt</code> e
+      <code>community_report_graph.txt</code> — nunca o
+      <code>text_prompt</code> (<code>community_report_text.txt</code>).
+      Como o <code>settings.yaml</code> referencia os dois, sem essa
+      correção o índice completo quebra na fase
+      <code>create_community_reports</code> com
+      <code>FileNotFoundError</code>. Gere o padrão de fábrica pra esse
+      arquivo específico (comando na Fase 1) antes de rodar o índice
+      completo.
+    </p>
+  </div>
+
+  <div class="box tip">
+    <span class="box-label">Boa prática: escolha do corpus de teste</span>
+    <p>
+      Exclua arquivos de meta-documentação (<code>AGENTS.md</code>,
+      <code>README.md</code> de navegação) do mini-corpus de teste — eles
+      não são conteúdo real e distorcem os exemplos que o
+      <code>prompt-tune</code> usa pra calibrar o prompt.
+    </p>
+  </div>
+</section>
+
+<section id="fase3">
+  <h2>Fase 3 — Indexação completa</h2>
+  <p class="phase-sub">A fase mais cara e mais frágil. A maior parte dos bugs reais deste tutorial apareceu aqui.</p>
+
+  <pre><code>graphrag index --root . --verbose</code></pre>
+
+  <h3>Workflows padrão</h3>
+  <table>
+    <thead><tr><th><code>--method</code></th><th>Workflows principais</th><th>Custo de LLM</th></tr></thead>
+    <tbody>
+      <tr><td><code>standard</code> (default)</td><td><code>extract_graph</code> (LLM) → <code>extract_covariates</code> → <code>create_communities</code> → <code>create_community_reports</code> (LLM) → <code>generate_text_embeddings</code></td><td>Alto</td></tr>
+      <tr><td><code>fast</code></td><td><code>extract_graph_nlp</code> (local) → <code>prune_graph</code> → <code>create_communities</code> → <code>create_community_reports_text</code> (LLM) → <code>generate_text_embeddings</code></td><td>Baixo/médio (só relatórios + embeddings)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box bug">
+    <span class="box-label">BUG CRÍTICO: race condition no cache de arquivos</span>
+    <p>
+      Sintoma: o índice falha de forma <strong>não-determinística</strong>
+      durante <code>extract_graph</code> ou <code>summarize_descriptions</code>,
+      alternando entre execuções diferentes com:
+    </p>
+    <pre><code>FileNotFoundError: [Errno 2] No such file or directory: '.../cache/summarize_descriptions/&lt;hash&gt;_v4'</code></pre>
+    <pre><code>TypeError: the JSON object must be str, bytes or bytearray, not NoneType</code></pre>
+    <p>
+      Apagar o <code>cache/</code> e reindexar "resolve" temporariamente,
+      mas o erro volta em execuções seguintes — sinal de bug de
+      concorrência, não de config quebrada.
+    </p>
+    <p><strong>Causa raiz</strong> (rastreada no código-fonte do pacote):</p>
+    <ol class="normal">
+      <li><code>concurrent_requests</code> é um campo <strong>global</strong>, não por modelo — o campo real fica em <code>GraphRagConfig.concurrent_requests</code>, no nível raiz do <code>settings.yaml</code>, com <strong>default 25</strong>. Colocar <code>concurrent_requests</code> dentro de um bloco de <code>completion_models</code>/<code>embedding_models</code> é <strong>silenciosamente ignorado</strong> — esse campo não existe no schema de model config.</li>
+      <li>O cache de arquivos (<code>FileStorage</code>) <strong>não é atômico</strong>: <code>set()</code> abre o arquivo direto em modo escrita (trunca antes de escrever), sem arquivo temporário + rename.</li>
+      <li><code>JsonCache.get()</code> faz check-then-use (TOCTOU): checa se o arquivo existe, e só depois, numa chamada separada, lê o conteúdo.</li>
+      <li>Com concorrência alta (25 por default), é comum duas chamadas processarem a <strong>mesma chave de cache</strong> ao mesmo tempo — acontece sempre que a mesma entidade é descrita em vários chunks do corpus (muito comum em corpus real). Uma trunca o arquivo enquanto a outra lê → JSON incompleto → é deletado → uma terceira chamada que já tinha confirmado que o arquivo existia encontra <code>FileNotFoundError</code> ao tentar abri-lo.</li>
+    </ol>
+    <p><strong>Correção</strong>: no nível raiz do <code>settings.yaml</code>:</p>
+    <pre><code>concurrent_requests: 3   # ou 1, garantidamente seguro (sequencial), porém mais lento</code></pre>
+    <p>
+      <code>concurrent_requests: 1</code> elimina a race por construção
+      (zero concorrência possível). <code>3</code> reduz drasticamente a
+      chance de colisão e foi validado em produção (reindexação completa,
+      milhares de chamadas, zero erros do início ao fim) — mais rápido que
+      <code>1</code>, mas não <em>garantidamente</em> livre de colisão.
+      Se a race reaparecer, caia para <code>1</code>.
+    </p>
+  </div>
+
+  <div class="box caveat">
+    <span class="box-label">Caveat: reindexação não é incremental após mudar prompt</span>
+    <p>
+      O conteúdo do prompt entra no hash da chave de cache. Trocar qualquer
+      texto em <code>extract_graph.txt</code>/<code>summarize_descriptions.txt</code>/
+      <code>community_report_*.txt</code> invalida o cache <em>inteiro</em>
+      daquela fase — todos os chunks/entidades precisam ser reprocessados,
+      não só os que mudaram. Já mudar apenas configs que não afetam o texto
+      do prompt final enviado ao modelo (ex.: parâmetros de
+      <code>cluster_graph</code>, que roda depois da extração) não invalida
+      o cache de extração.
+    </p>
+  </div>
+
+  <div class="box tip">
+    <span class="box-label">Boa prática: sempre salve um backup do estado que funciona</span>
+    <p>Antes de mexer em qualquer coisa depois de um índice bem-sucedido:</p>
+    <pre><code>tar czf output_$(date +%F)_ok.tar.gz output/
+cp settings.yaml settings.yaml.ok</code></pre>
+  </div>
+
+  <h3>Sinais de que o índice terminou bem</h3>
+  <pre><code>python3 -c "
+import pandas as pd, glob, os
+for f in sorted(glob.glob('output/*.parquet')):
+    print(f'{len(pd.read_parquet(f)):7}  {os.path.basename(f)}')
+"</code></pre>
+  <p>Devem existir e ter linhas &gt; 0: <code>documents</code>, <code>text_units</code>, <code>entities</code>, <code>relationships</code>, <code>communities</code>, <code>community_reports</code>. Se usou embeddings, confira também as 3 tabelas do LanceDB (<code>entity_description</code>, <code>text_unit_text</code>, <code>community_full_content</code>) — todas com a mesma dimensão do embedding configurado.</p>
+
+  <div class="box bug">
+    <span class="box-label">Bug histórico (versões antigas): as 3 famílias de embedding se sobrescreviam</span>
+    <p>
+      Em algumas versões/configs, as três famílias de embedding
+      (<code>entity_description</code>, <code>text_unit_text</code>,
+      <code>community_full_content</code>) eram gravadas na <em>mesma</em>
+      tabela do vector store em modo overwrite — a última a rodar apagava
+      as anteriores, deixando só uma família de vetores no banco (o sinal é
+      o número de linhas da tabela bater exatamente com o tamanho de
+      <em>uma</em> das três, e as outras não aparecerem em nenhum lugar).
+      Isso quebra <code>local</code>/<code>drift</code>/<code>basic</code>
+      search (que dependem de embedding), enquanto <code>global</code>
+      continua funcionando normalmente (não usa vetores). Se isso
+      acontecer, confirme no seu vector store se existem tabelas/namespaces
+      separados por família antes de reindexar.
+    </p>
+  </div>
+</section>
+
+<section id="fase4">
+  <h2>Fase 4 — Consultando o índice</h2>
+  <p class="phase-sub">Quatro métodos, comportamentos e custos bem diferentes.</p>
+
+  <table>
+    <thead><tr><th>Método</th><th>Como funciona</th><th>Chamadas de LLM por pergunta</th><th>Quando usar</th></tr></thead>
+    <tbody>
+      <tr><td><code>local</code></td><td>Busca vetorial + contexto local (entidades/relações próximas)</td><td>1</td><td>Perguntas específicas sobre um tópico/entidade</td></tr>
+      <tr><td><code>global</code></td><td>Map-reduce sobre <em>todos</em> os relatórios de comunidade de um nível</td><td>1 por relatório do nível (pode ser centenas)</td><td>Visão macro ("quais os temas principais?") — sempre com <code>--community-level 0</code></td></tr>
+      <tr><td><code>basic</code></td><td>Busca vetorial simples sobre os chunks de texto, sem grafo</td><td>1</td><td>Perguntas pontuais, quando não precisa de síntese via grafo</td></tr>
+      <tr><td><code>drift</code></td><td>Parte de uma entidade e navega o grafo com múltiplos follow-ups internos</td><td>Várias (primer + follow-ups, acumula)</td><td>Perguntas que precisam de navegação/aprofundamento, uso didático</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box bug">
+    <span class="box-label">Bug: <code>drift</code> falha com modelo local pequeno</span>
+    <p>
+      Sintoma: <code>drift_search</code> quebra com
+      <code>JSONDecodeError: Expecting value: line 1 column 1 (char 0)</code>
+      vindo de dentro da validação de schema JSON do litellm. Causa: a
+      etapa de "primer" do <code>drift</code> exige que o modelo retorne
+      JSON estruturado válido (<code>response_format: json_object</code>);
+      um modelo local pequeno (poucos bilhões de parâmetros) pode retornar
+      uma resposta vazia ou mal-formada, e a validação de schema não
+      degrada graciosamente — ela lança excessão e derruba a consulta
+      inteira. Correção: configure
+      <code>drift_search.completion_model_id</code> para um modelo mais
+      confiável (tipicamente o mesmo usado em produção/API paga), não o
+      modelo local leve.
+    </p>
+  </div>
+
+  <div class="box caveat">
+    <span class="box-label">Caveat: query não tem cache</span>
+    <p>
+      Diferente da indexação, <code>graphrag query</code> não cacheia nada
+      — cada pergunta repetida custa de novo, mesmo que seja
+      <em>exatamente</em> a mesma pergunta de antes.
+    </p>
+  </div>
+
+  <div class="box caveat">
+    <span class="box-label">Caveat: <code>global</code> no nível default pode ser caro</span>
+    <p>
+      O nível de comunidade default para <code>global_search</code>
+      geralmente é um nível intermediário (granular), que pode ter
+      centenas de relatórios — logo, centenas de chamadas de LLM por
+      pergunta. Sempre especifique <code>--community-level 0</code> (o
+      nível mais macro, menos relatórios) a menos que precise de
+      granularidade fina.
+    </p>
+    <pre><code>graphrag query --root . --method global --community-level 0 "sua pergunta"</code></pre>
+  </div>
+
+  <div class="box tip">
+    <span class="box-label">Boa prática: sequência de iterações com <code>drift</code></span>
+    <p>
+      A CLI de query <strong>não mantém estado entre chamadas</strong> —
+      cada invocação é independente, sem histórico. Pra simular uma
+      "conversa" de aprofundamento progressivo: rode uma pergunta, leia a
+      resposta, escolha um conceito que apareceu mas não foi perguntado
+      diretamente, e faça a próxima pergunta citando esse conceito pelo
+      nome exato usado na resposta anterior — isso ajuda a busca a
+      encontrar o mesmo nó do grafo. Repita até esgotar profundidade nova,
+      ou até o sistema admitir que não tem a informação — ambos os
+      desfechos são úteis: o segundo mostra os limites reais do corpus
+      indexado, em vez de alucinar uma conexão que não existe.
+    </p>
+  </div>
+</section>
+
+<section id="checklist">
+  <h2>Checklist de bugs conhecidos</h2>
+  <table>
+    <thead><tr><th>Sintoma</th><th>Fase</th><th>Causa</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>Pipeline error: ... No such file: 'prompts/extract_graph.txt'</code></td><td>Indexação (extract_graph)</td><td><code>prompts/</code> ausente/incompleto</td><td>Gerar os defaults via Python (Fase 1)</td></tr>
+      <tr><td><code>FileNotFoundError</code> alternando entre execuções, ou <code>TypeError: ... NoneType</code></td><td>Indexação (extract_graph / summarize_descriptions)</td><td>Race condition no cache de arquivos, <code>concurrent_requests</code> default 25</td><td><code>concurrent_requests: 3</code> (ou <code>1</code>) no nível raiz do <code>settings.yaml</code></td></tr>
+      <tr><td><code>FileNotFoundError</code> na fase <code>create_community_reports</code></td><td>Indexação</td><td><code>community_report_text.txt</code> nunca gerado pelo <code>prompt-tune</code></td><td>Gerar o default via Python (Fase 2)</td></tr>
+      <tr><td><code>graphrag init</code> aborta com "Aborted."</td><td>Setup</td><td>CLI interativa sem TTY</td><td>Montar <code>settings.yaml</code>/<code>prompts/</code> manualmente</td></tr>
+      <tr><td><code>JSONDecodeError: Expecting value</code> em <code>drift</code></td><td>Query</td><td>Modelo local pequeno não retorna JSON válido no "primer"</td><td>Trocar <code>drift_search.completion_model_id</code> para modelo maior</td></tr>
+      <tr><td>Só uma família de embedding aparece no vector store</td><td>Indexação (generate_text_embeddings)</td><td>Overwrite de tabela entre famílias de embedding</td><td>Confirmar tabelas/namespaces separados por família antes de reindexar</td></tr>
+      <tr><td>Distribuição de comunidades estranha, ou tópico "forasteiro" isolado</td><td>Avaliação (Fase 0)</td><td>Corpus com material desconexo, ou poluído por meta-arquivos (<code>AGENTS.md</code> etc.)</td><td>Rodar preview <code>--method fast</code> antes; ajustar <code>file_pattern</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="referencia">
+  <h2>Referência rápida de comandos</h2>
+  <pre><code># Fase 0 — preview estrutural (zero LLM)
+graphrag index --root &lt;root-preview&gt; --method fast --verbose
+
+# Fase 1 — validar config sem rodar nada
+graphrag index --root . --dry-run
+
+# Fase 2 — ajustar prompts (funciona sem índice prévio)
+graphrag prompt-tune --root . --language &lt;idioma&gt; \
+  --domain "&lt;descrição + objetivo&gt;" --selection-method auto \
+  --discover-entity-types --verbose
+
+# Fase 3 — índice completo
+graphrag index --root . --verbose
+
+# Fase 4 — consultas
+graphrag query --root . --method local  "pergunta específica"
+graphrag query --root . --method global --community-level 0 "pergunta ampla"
+graphrag query --root . --method basic  "pergunta pontual"
+graphrag query --root . --method drift  "pergunta que precisa navegar o grafo"
+
+# Backup do estado que funciona
+tar czf output_$(date +%F)_ok.tar.gz output/
+cp settings.yaml settings.yaml.ok</code></pre>
+</section>
+
+<footer>
+  <p>Tutorial gerado a partir de um projeto real de indexação com GraphRAG 3.1.1. Todos os bugs e correções descritos foram reproduzidos e confirmados em execução real, não são hipotéticos.</p>
+  <p class="backtotop"><a href="#intro">↑ voltar ao topo</a></p>
+</footer>
+
+</main>
+</div>
+</body>
+</html>

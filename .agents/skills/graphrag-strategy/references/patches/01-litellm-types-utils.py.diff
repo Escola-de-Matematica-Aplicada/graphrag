@@ -1,0 +1,31 @@
+--- a/litellm/types/utils.py
++++ b/litellm/types/utils.py
+@@ -1167,6 +1167,28 @@
+         annotations: Optional[List[ChatCompletionAnnotation]] = None,
+         **params,
+     ):
++        # Normalize list-style content (reasoning + text blocks) into a plain string.
++        # Some reasoning models (e.g. gpt-oss, Qwen3 "thinking" variants) return
++        # content as [{"type": "reasoning", "summary": [...]}, {"type": "text", ...}]
++        # instead of a plain string, which fails validation below (`content` is
++        # typed Optional[str]). Prefer the final "text" block (the actual answer);
++        # only fall back to the reasoning summary text if no text block exists at
++        # all, so callers still get *something* instead of a hard crash.
++        if isinstance(content, list):
++            _text_parts: List[str] = []
++            _reasoning_parts: List[str] = []
++            for _item in content:
++                if isinstance(_item, dict):
++                    if _item.get("type") == "text" and "text" in _item:
++                        _text_parts.append(_item["text"])
++                    elif _item.get("type") == "reasoning" and "summary" in _item:
++                        for _s in _item.get("summary", []):
++                            if isinstance(_s, dict) and "text" in _s:
++                                _reasoning_parts.append(_s["text"])
++                elif isinstance(_item, str):
++                    _text_parts.append(_item)
++            content = "\n".join(_text_parts) if _text_parts else ("\n".join(_reasoning_parts) or None)
++
+         init_values: Dict[str, Any] = {
+             "content": content,
+             "role": role or "assistant",  # handle null input

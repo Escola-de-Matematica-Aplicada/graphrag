@@ -1,0 +1,31 @@
+--- a/graphrag/index/operations/extract_graph/extract_graph.py
++++ b/graphrag/index/operations/extract_graph/extract_graph.py
+@@ -117,13 +117,23 @@
+ 
+ def _merge_relationships(relationship_dfs) -> pd.DataFrame:
+     all_relationships = pd.concat(relationship_dfs, ignore_index=False)
++    # Base aggregation always present. Any extra optional per-relationship
++    # column (currently only `label`) must be added conditionally here --
++    # `.agg()` silently drops any dataframe column that is not named in this
++    # dict, with no warning, so this is the one place a new relationship
++    # field can vanish without a trace.
++    agg = {
++        "description": ("description", list),
++        "text_unit_ids": ("source_id", list),
++        "weight": ("weight", "sum"),
++    }
++    if "label" in all_relationships.columns:
++        # Same label repeats across duplicate (source, target) rows coming
++        # from different text chunks; keep the first non-empty occurrence.
++        agg["label"] = ("label", "first")
+     return (
+         all_relationships
+         .groupby(["source", "target"], sort=False)
+-        .agg(
+-            description=("description", list),
+-            text_unit_ids=("source_id", list),
+-            weight=("weight", "sum"),
+-        )
++        .agg(**agg)
+         .reset_index()
+     )

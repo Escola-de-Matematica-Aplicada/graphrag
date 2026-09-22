@@ -1,0 +1,34 @@
+--- a/graphrag/index/operations/extract_graph/graph_extractor.py
++++ b/graphrag/index/operations/extract_graph/graph_extractor.py
+@@ -161,6 +161,16 @@
+                     weight = float(record_attributes[-1])
+                 except ValueError:
+                     weight = 1.0
++                # Optional 6th tuple field: a short relationship label.
++                # It sits between `description` (fixed index 3, never moves)
++                # and `weight` (always read via [-1], so it stays robust to
++                # this extra field). Prompts that only emit the original
++                # 5-field tuple keep working unchanged (label = "").
++                edge_label = (
++                    clean_str(record_attributes[4])
++                    if len(record_attributes) >= 6
++                    else ""
++                )
+ 
+                 relationships.append({
+                     "source": source,
+@@ -168,6 +178,7 @@
+                     "description": edge_description,
+                     "source_id": source_id,
+                     "weight": weight,
++                    "label": edge_label,
+                 })
+ 
+         entities_df = pd.DataFrame(entities) if entities else _empty_entities_df()
+@@ -184,5 +195,5 @@
+ 
+ def _empty_relationships_df() -> pd.DataFrame:
+     return pd.DataFrame(
+-        columns=["source", "target", "weight", "description", "source_id"]
++        columns=["source", "target", "weight", "description", "source_id", "label"]
+     )

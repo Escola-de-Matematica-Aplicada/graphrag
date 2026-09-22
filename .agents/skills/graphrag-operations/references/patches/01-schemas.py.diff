@@ -1,0 +1,21 @@
+--- a/graphrag/data_model/schemas.py
++++ b/graphrag/data_model/schemas.py
+@@ -20,6 +20,10 @@
+ EDGE_DEGREE = "combined_degree"
+ EDGE_DETAILS = "edge_details"
+ EDGE_WEIGHT = "weight"
++# Short (~3 word) verb-phrase label summarizing the relationship, distinct
++# from the free-text `description` field. Optional: extraction prompts that
++# do not request it simply leave every row empty.
++EDGE_LABEL = "label"
+ 
+ # POST-PREP CLAIM TABLE SCHEMA
+ CLAIM_SUBJECT = "subject_id"
+@@ -84,6 +88,7 @@
+     EDGE_SOURCE,
+     EDGE_TARGET,
+     DESCRIPTION,
++    EDGE_LABEL,
+     EDGE_WEIGHT,
+     EDGE_DEGREE,
+     TEXT_UNIT_IDS,
