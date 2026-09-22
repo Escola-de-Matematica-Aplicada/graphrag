@@ -103,12 +103,40 @@ do pesquisador, use a skill companion `graphrag-strategy` — esta skill cobre o
      padrão de nome.
    - Referência viva que já roda nesta máquina: `/workspaces/graphrag/settings.yaml`.
 
+13. **`create_community_reports` falha 100% em backends de guided-JSON que só
+    aceitam schema flat** (Databricks AI Gateway, vLLM guided decoding,
+    `outlines`/`lm-format-enforcer`) — `CommunityReportsExtractor.__call__`
+    passa `response_format=CommunityReportResponse`, e
+    `CommunityReportResponse.findings` é `list[FindingModel]` (BaseModel
+    aninhado). `pydantic.model_json_schema()` sempre fatora um BaseModel
+    aninhado num `$defs` top-level referenciado via `$ref` — sem opção nativa
+    de inline total — e esses backends rejeitam qualquer schema com
+    `$defs`/`$ref` com 400 (`"Invalid JSON schema - /$defs/FindingModel"`).
+    **Sintoma traiçoeiro**: `summarize_communities` captura a exceção por
+    comunidade (log só mostra "No report found for community: N"), então o
+    pipeline não crasha ali — termina em "Pipeline complete" enganoso, e o
+    erro real só aparece no fim quando `finalize_community_reports` faz
+    `pandas.merge` num `community` column vazio e levanta
+    `KeyError: 'community'`. **Fix**: como o prompt já pede o formato JSON em
+    prosa, remova `response_format` do `completion_async(...)` e parseie/
+    valide o texto no cliente (`json.loads` com fallback de fence
+    ` ```json ` e slice entre `{`/`}`, depois
+    `CommunityReportResponse(**parsed)`). Neste fork **o patch já está
+    mergeado** em
+    `packages/graphrag/graphrag/index/operations/summarize_communities/community_reports_extractor.py`
+    — nada a reaplicar. Candidato a PR upstream pronto em
+    `references/PR-COMMUNITY-REPORTS-SCHEMA.md` +
+    `references/patches/06-community_reports_extractor.py.diff` (verificado
+    com `git apply`/`git apply -R` e `tests/verbs/test_create_community_reports.py`
+    nesta árvore).
+
 ## Scripts de patch (reaplicar depois de qualquer restart de container)
 
 **Neste fork (Escola-de-Matematica-Aplicada/graphrag) o patch já está
 mergeado no código-fonte** (`packages/graphrag/graphrag/data_model/schemas.py`,
 `.../index/operations/extract_graph/{graph_extractor,extract_graph}.py`,
-`.../index/operations/snapshot_graphml.py`, `.../index/update/relationships.py`)
+`.../index/operations/snapshot_graphml.py`, `.../index/update/relationships.py`,
+`.../index/operations/summarize_communities/community_reports_extractor.py`)
 — nada a reaplicar aqui.
 
 `scripts/apply-edge-label-patch.py` — reaplica os 5 patches (4 da armadilha 9
@@ -133,6 +161,12 @@ próprio pacote). Fix idêntico: agregação condicional + backfill de `""`.
 (comentários em inglês, já testados após reinstalação limpa do pacote e,
 para o 5º arquivo, contra os testes unitários do próprio pacote) +
 descrição pronta para colar num PR em `references/PR-EDGE-LABEL.md`.
+
+**Segundo candidato a PR upstream** (achado independente, ver armadilha 13):
+`references/patches/06-community_reports_extractor.py.diff` +
+`references/PR-COMMUNITY-REPORTS-SCHEMA.md` — corrige a falha de
+`create_community_reports` em backends de guided-JSON com schema flat
+(removendo o `response_format` aninhado e parseando a resposta no cliente).
 
 ## Playbook validado (receita completa)
 
