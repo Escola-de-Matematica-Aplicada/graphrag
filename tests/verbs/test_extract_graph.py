@@ -55,7 +55,8 @@ async def test_extract_graph():
     edges_actual = await context.output_table_provider.read_dataframe("relationships")
 
     assert len(nodes_actual.columns) == 5
-    assert len(edges_actual.columns) == 5
+    # source, target, text_unit_ids, weight, label, description
+    assert len(edges_actual.columns) == 6
 
     # TODO: with the combined verb we can't force summarization
     # this is because the mock responses always result in a single description, which is returned verbatim rather than summarized

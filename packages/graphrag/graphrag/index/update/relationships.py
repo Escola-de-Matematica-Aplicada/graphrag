@@ -48,24 +48,33 @@ def _update_and_merge_relationships(
         [old_relationships, delta_relationships], ignore_index=True
     )
 
-    # Group by title and resolve conflicts
+    # Group by title and resolve conflicts. Base aggregation always present;
+    # any extra optional per-relationship column (currently only `label`)
+    # must be added conditionally -- `.agg()` silently drops any dataframe
+    # column not named here, with no warning.
+    agg = {
+        "id": "first",
+        "human_readable_id": "first",
+        "description": lambda x: list(x.astype(str)),  # Ensure str
+        # Concatenate nd.array into a single list
+        "text_unit_ids": lambda x: list(itertools.chain(*x.tolist())),
+        "weight": "mean",
+        "combined_degree": "sum",
+    }
+    if "label" in merged_relationships.columns:
+        agg["label"] = "first"
     aggregated = (
-        merged_relationships
-        .groupby(["source", "target"])
-        .agg({
-            "id": "first",
-            "human_readable_id": "first",
-            "description": lambda x: list(x.astype(str)),  # Ensure str
-            # Concatenate nd.array into a single list
-            "text_unit_ids": lambda x: list(itertools.chain(*x.tolist())),
-            "weight": "mean",
-            "combined_degree": "sum",
-        })
-        .reset_index()
+        merged_relationships.groupby(["source", "target"]).agg(agg).reset_index()
     )
 
     # Force the result into a DataFrame
     final_relationships: pd.DataFrame = pd.DataFrame(aggregated)
+
+    # `label` is optional (absent for indexes built before this field
+    # existed, or via extractors that never populate it) -- backfill so the
+    # final column selection below does not KeyError.
+    if "label" not in final_relationships.columns:
+        final_relationships["label"] = ""
 
     # Recalculate target and source degrees
     final_relationships["source_degree"] = final_relationships.groupby("source")[
