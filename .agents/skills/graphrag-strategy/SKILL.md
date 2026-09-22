@@ -209,6 +209,24 @@ antes de qualquer execução.
 | `extract_graph` falha no fim, depois de horas de extração bem-sucedida (`litellm.RateLimitError: REQUEST_LIMIT_EXCEEDED`), e nenhum `entities.parquet`/`relationships.parquet` é escrito | O passo interno `summarize_descriptions` usa um `completion_model_id` diferente **sem `rate_limit:` configurado**, satura a cota do workspace, e a exceção derruba o workflow `extract_graph` inteiro — descartando também a extração principal, que já tinha terminado com sucesso | Configurar `rate_limit:` em **todo** modelo usado dentro de `extract_graph` (extração + summarize), não só no principal; ao reindexar, o cache do modelo principal é reaproveitado (não refaz as horas de trabalho) — só limpar `cache/summarize_descriptions/` se trocar esse modelo. Ver `.agents/skills/graphrag-operations/references/edge-label-patch.md` |
 | Depois de muitas horas rodando um corpus grande, a extração vira `litellm.BadRequestError: ... hit your free daily limit. Please come back again tomorrow` (não `RateLimitError`) e o `extract_graph` falha sem escrever `entities.parquet`/`relationships.parquet`, mesmo tendo processado ~100% dos chunks | Cota **diária** (não por minuto) — **específica do workspace Databricks, tier gratuito** (não é limitação do GraphRAG/litellm nem de LLMs em geral; outros provedores como Agnes AI não exibiram isso) — esgotada. Retry/backoff não ajuda, é uma parede até o dia seguinte. A extração em si degrada por chunk (perde só as entidades daquele chunk), mas `summarize_descriptions` não tem essa proteção — a primeira chamada dele com a cota zerada derruba o workflow inteiro, descartando a extração que já tinha terminado | Trocar de **provedor** (não só de modelo) no `settings.yaml` — chamadas que falharam não são cacheadas, então religar reaproveita via cache-hit tudo que já deu certo e só refaz o que faltou, agora no provedor novo. Testar o novo endpoint com `curl` antes de religar. Ver `.agents/skills/graphrag-operations/references/edge-label-patch.md` |
 
+**Nota (fork Escola-de-Matematica-Aplicada/graphrag, 2026-09-22):** este fork
+pina `litellm==1.100.1` (`packages/graphrag-llm/pyproject.toml`), bem mais
+novo que a versão em que a linha acima e `apply-litellm-reasoning-patch.py`
+foram documentados (1.92.0/1.97.0). `Message.__init__` foi reescrito nessa
+faixa de versões — o texto-âncora do script/diff **não bate mais** com
+`litellm/types/utils.py` (confirmado rodando o script neste venv: falha limpo
+com `[FALHOU] ... trecho esperado nao encontrado`, sem corromper nada). O bug
+em si **continua reproduzível** mesmo em 1.100.1 — confirmado chamando
+`litellm.types.utils.Message(content=[{"type": "reasoning", ...}, {"type":
+"text", ...}])` diretamente, que ainda lança o mesmo
+`pydantic_core.ValidationError: Input should be a valid string`. Se esse bug
+aparecer de fato num modelo de raciocínio atrás deste fork, o patch precisa
+ser regenerado contra o `Message.__init__` atual (que já tem campos dedicados
+`reasoning_content`/`thinking_blocks`/`reasoning_items` — vale checar primeiro
+se a camada de transformação de resposta do provedor específico já extrai o
+bloco de raciocínio para esses campos antes de chegar em `Message(...)`, o
+que tornaria o patch antigo desnecessário).
+
 Detalhamento completo de cada um, com trechos de código-fonte que provam a
 causa raiz: **`references/TUTORIAL-GERAL.html`**. Playbook ponta-a-ponta com
 comandos exatos e pitfalls de infra (escaping YAML do `file_pattern`,

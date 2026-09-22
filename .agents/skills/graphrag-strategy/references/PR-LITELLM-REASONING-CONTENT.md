@@ -7,6 +7,19 @@ depois de rodar `../scripts/apply-litellm-reasoning-patch.py`) está em
 `patches/01-litellm-types-utils.py.diff`. Contexto completo e o bug
 original (outro modelo, mesma causa raiz): `BUGFIX-LITELLM-REASONING.md`.
 
+> **Desatualizado para este fork (verificado 2026-09-22):** o fork
+> Escola-de-Matematica-Aplicada/graphrag pina `litellm==1.100.1`
+> (`packages/graphrag-llm/pyproject.toml`), onde `Message.__init__` já foi
+> reescrito — o diff abaixo não bate mais com esse arquivo (confirmado:
+> rodar `apply-litellm-reasoning-patch.py` neste venv falha de forma segura
+> com `[FALHOU] ... trecho esperado nao encontrado`). O bug em si **continua
+> reproduzível** em 1.100.1 (`Message(content=[...])` chamado direto ainda
+> lança `pydantic_core.ValidationError`), então este candidato a PR ainda é
+> relevante para o litellm atual — só precisa de um diff novo gerado contra
+> a versão atual de `Message.__init__` antes de ser útil aqui. Não é código
+> deste fork (litellm é só uma dependência via `packages/graphrag-llm`), por
+> isso não há patch aplicado no fork em si — apenas esta nota.
+
 ---
 
 ## Summary

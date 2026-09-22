@@ -108,19 +108,30 @@ do pesquisador, use a skill companion `graphrag-strategy` — esta skill cobre o
 **Neste fork (Escola-de-Matematica-Aplicada/graphrag) o patch já está
 mergeado no código-fonte** (`packages/graphrag/graphrag/data_model/schemas.py`,
 `.../index/operations/extract_graph/{graph_extractor,extract_graph}.py`,
-`.../index/operations/snapshot_graphml.py`) — nada a reaplicar aqui.
+`.../index/operations/snapshot_graphml.py`, `.../index/update/relationships.py`)
+— nada a reaplicar aqui.
 
-`scripts/apply-edge-label-patch.py` — reaplica os mesmos 4 patches da
-armadilha 9 (campo `label` nas relações) num pacote `graphrag` instalado via
-pip em site-packages (outra máquina/container sem este checkout). Idempotente
-(roda seguro múltiplas vezes). Necessário depois de todo restart de container
-**antes** de indexar nesses ambientes, senão `relationships.parquet` sai sem a
-coluna `label` silenciosamente (sem erro). Ver caso real de 2026-09-22 em
-`references/edge-label-patch.md`.
+`scripts/apply-edge-label-patch.py` — reaplica os 5 patches (4 da armadilha 9
++ 1 achado ao portar este patch para um fork real, ver abaixo) num pacote
+`graphrag` instalado via pip em site-packages (outra máquina/container sem
+este checkout). Idempotente (roda seguro múltiplas vezes). Necessário depois
+de todo restart de container **antes** de indexar nesses ambientes, senão
+`relationships.parquet` sai sem a coluna `label` silenciosamente (sem erro).
+Ver caso real de 2026-09-22 em `references/edge-label-patch.md`.
+
+**Achado adicional (2026-09-22, ao portar o patch para o fork
+Escola-de-Matematica-Aplicada/graphrag)**: `index/update/relationships.py`
+(caminho de indexação incremental) tem seu **próprio** `.groupby().agg({...})`
+com lista de colunas fixa, independente do de `extract_graph.py` — mesma
+classe de bug da armadilha 9, em outro arquivo. Sem esse 5º patch, adicionar
+`EDGE_LABEL` a `RELATIONSHIPS_FINAL_COLUMNS` quebra a atualização incremental
+com `KeyError: "['label'] not in index"` (pego pelos testes unitários do
+próprio pacote). Fix idêntico: agregação condicional + backfill de `""`.
 
 **Candidato a PR upstream** (microsoft/graphrag): diffs reais prontos em
-`references/patches/01-schemas.py.diff` .. `04-snapshot_graphml.py.diff`
-(comentários em inglês, já testados após reinstalação limpa do pacote) +
+`references/patches/01-schemas.py.diff` .. `05-update_relationships.py.diff`
+(comentários em inglês, já testados após reinstalação limpa do pacote e,
+para o 5º arquivo, contra os testes unitários do próprio pacote) +
 descrição pronta para colar num PR em `references/PR-EDGE-LABEL.md`.
 
 ## Playbook validado (receita completa)

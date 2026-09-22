@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reaplica o patch de 4 arquivos (label curta nas arestas) no pacote
+"""Reaplica o patch de 5 arquivos (label curta nas arestas) no pacote
 `graphrag` instalado em site-packages.
 
 Por que este script existe: o patch documentado em
@@ -14,13 +14,16 @@ campo `label` sobreviva ate o `relationships.parquet`/`graph.graphml` final.
 Idempotente: cada patch checa uma marca antes de aplicar; rodar de novo em
 um pacote ja patchado nao faz nada (imprime "ja aplicado").
 
-Sequencia de patches (nesta ordem -- ordem importa: os passos 2-4 dependem
+Sequencia de patches (nesta ordem -- ordem importa: os passos 2-5 dependem
 conceitualmente do nome de campo introduzido no passo 1, mesmo que o script
 aplique por texto literal e nao por import):
   1. data_model/schemas.py            -- add EDGE_LABEL field constant
   2. extract_graph/graph_extractor.py -- parse the optional 6th tuple field
   3. extract_graph/extract_graph.py   -- preserve `label` through the merge/groupby
   4. snapshot_graphml.py              -- include `label`/`description` in .graphml export
+  5. index/update/relationships.py    -- same fix as #3, but for the incremental-update
+                                          path's own independent hardcoded agg() column list
+                                          (only relevant if incremental indexing is used)
 
 Os comentarios dentro dos blocos `new=` abaixo estao em ingles de proposito:
 sao o texto que efetivamente entra no arquivo do pacote (destino de um PR
@@ -208,6 +211,64 @@ def main() -> None:
             "    graph = nx.from_pandas_edgelist(edges, edge_attr=edge_attrs)"
         ),
         label="snapshot_graphml.py: inclui label/description no .graphml",
+    )
+
+    # --- Patch 5/5: index/update/relationships.py -- incremental-update path has its own
+    # independent hardcoded agg() column list (separate from extract_graph.py's) ---
+    update_relationships_path = ROOT / "index" / "update" / "relationships.py"
+    changed |= patch_file(
+        update_relationships_path,
+        marker='if "label" in merged_relationships.columns',
+        old=(
+            "    # Group by title and resolve conflicts\n"
+            "    aggregated = (\n"
+            "        merged_relationships\n"
+            '        .groupby(["source", "target"])\n'
+            "        .agg({\n"
+            '            "id": "first",\n'
+            '            "human_readable_id": "first",\n'
+            '            "description": lambda x: list(x.astype(str)),  # Ensure str\n'
+            "            # Concatenate nd.array into a single list\n"
+            '            "text_unit_ids": lambda x: list(itertools.chain(*x.tolist())),\n'
+            '            "weight": "mean",\n'
+            '            "combined_degree": "sum",\n'
+            "        })\n"
+            "        .reset_index()\n"
+            "    )\n"
+            "\n"
+            "    # Force the result into a DataFrame\n"
+            "    final_relationships: pd.DataFrame = pd.DataFrame(aggregated)\n"
+        ),
+        new=(
+            "    # Group by title and resolve conflicts. Base aggregation always present;\n"
+            "    # any extra optional per-relationship column (currently only `label`)\n"
+            "    # must be added conditionally -- `.agg()` silently drops any dataframe\n"
+            "    # column not named here, with no warning.\n"
+            "    agg = {\n"
+            '        "id": "first",\n'
+            '        "human_readable_id": "first",\n'
+            '        "description": lambda x: list(x.astype(str)),  # Ensure str\n'
+            "        # Concatenate nd.array into a single list\n"
+            '        "text_unit_ids": lambda x: list(itertools.chain(*x.tolist())),\n'
+            '        "weight": "mean",\n'
+            '        "combined_degree": "sum",\n'
+            "    }\n"
+            '    if "label" in merged_relationships.columns:\n'
+            '        agg["label"] = "first"\n'
+            "    aggregated = (\n"
+            '        merged_relationships.groupby(["source", "target"]).agg(agg).reset_index()\n'
+            "    )\n"
+            "\n"
+            "    # Force the result into a DataFrame\n"
+            "    final_relationships: pd.DataFrame = pd.DataFrame(aggregated)\n"
+            "\n"
+            "    # `label` is optional (absent for indexes built before this field\n"
+            "    # existed, or via extractors that never populate it) -- backfill so the\n"
+            "    # final column selection below does not KeyError.\n"
+            '    if "label" not in final_relationships.columns:\n'
+            '        final_relationships["label"] = ""\n'
+        ),
+        label="relationships.py: incremental-update agg() preserva label",
     )
 
     print()

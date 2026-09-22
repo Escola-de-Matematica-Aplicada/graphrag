@@ -1,6 +1,6 @@
---- a/graphrag/index/operations/snapshot_graphml.py
-+++ b/graphrag/index/operations/snapshot_graphml.py
-@@ -14,6 +14,20 @@
+--- a/packages/graphrag/graphrag/index/operations/snapshot_graphml.py
++++ b/packages/graphrag/graphrag/index/operations/snapshot_graphml.py
+@@ -14,6 +14,20 @@ async def snapshot_graphml(
      storage: Storage,
  ) -> None:
      """Take a entire snapshot of a graph to standard graphml format."""
@@ -9,7 +9,7 @@
 +    # edge frame, instead of hardcoding just "weight" -- `description` was
 +    # always available here but silently dropped, and `label` is optional
 +    # depending on whether the extraction prompt requested it.
-+    edge_attrs = [
++    edge_attrs: list[str | int] = [
 +        attr for attr in ("weight", "label", "description") if attr in edges.columns
 +    ]
 +    # GraphML does not support None/NaN as a data value (only "weight" is

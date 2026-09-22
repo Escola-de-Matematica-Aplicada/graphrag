@@ -1,6 +1,6 @@
---- a/graphrag/index/operations/extract_graph/graph_extractor.py
-+++ b/graphrag/index/operations/extract_graph/graph_extractor.py
-@@ -161,6 +161,16 @@
+--- a/packages/graphrag/graphrag/index/operations/extract_graph/graph_extractor.py
++++ b/packages/graphrag/graphrag/index/operations/extract_graph/graph_extractor.py
+@@ -161,6 +161,16 @@ class GraphExtractor:
                      weight = float(record_attributes[-1])
                  except ValueError:
                      weight = 1.0
@@ -14,19 +14,19 @@
 +                    if len(record_attributes) >= 6
 +                    else ""
 +                )
- 
+
                  relationships.append({
                      "source": source,
-@@ -168,6 +178,7 @@
+@@ -168,6 +178,7 @@ class GraphExtractor:
                      "description": edge_description,
                      "source_id": source_id,
                      "weight": weight,
 +                    "label": edge_label,
                  })
- 
+
          entities_df = pd.DataFrame(entities) if entities else _empty_entities_df()
-@@ -184,5 +195,5 @@
- 
+@@ -184,5 +195,5 @@ def _empty_entities_df() -> pd.DataFrame:
+
  def _empty_relationships_df() -> pd.DataFrame:
      return pd.DataFrame(
 -        columns=["source", "target", "weight", "description", "source_id"]

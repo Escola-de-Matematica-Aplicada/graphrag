@@ -2,9 +2,16 @@
 
 Conteúdo em inglês de propósito — é material pronto para virar a descrição
 de um PR no repositório upstream (`github.com/microsoft/graphrag`). Os
-diffs reais (gerados a partir de um `graphrag==3.1.2` pristino vs. o mesmo
-pacote depois de rodar `../scripts/apply-edge-label-patch.py`) estão em
-`patches/01-schemas.py.diff` .. `patches/04-snapshot_graphml.py.diff`.
+diffs em `patches/01-schemas.py.diff` .. `patches/05-update_relationships.py.diff`
+usam paths relativos à raiz do monorepo atual (`packages/graphrag/graphrag/...`,
+o mesmo layout do upstream `microsoft/graphrag` desde a reestruturação em uv
+workspace) — **verificados em 2026-09-22 aplicando/revertendo com
+`git apply`/`git apply -R` neste fork** (Escola-de-Matematica-Aplicada/graphrag,
+que está sincronizado com `upstream/main` além deste patch). Uma versão
+anterior destes diffs usava paths de instalação `pip` (`graphrag/...` sem o
+prefixo `packages/graphrag/`) gerados contra um `graphrag==3.1.2` pristino
+instalado via pip — ainda válidos nesse cenário (site-packages), mas não
+aplicam direto num checkout do monorepo sem ajustar o path.
 Reproduzido/validado em produção real: ver
 `edge-label-patch.md` (contexto completo) e a seção "Validação recomendada"
 lá para o roteiro de teste.
@@ -47,13 +54,25 @@ entirely by `snapshot_graphml.py`, which only ever included `weight` in
   already robust to extra trailing-adjacent fields. A prompt that still
   emits the original 4-field tuple keeps working unchanged (`label` ends up
   `""`).
-- **The trickiest bug, and the reason this is 4 files, not 1**:
+- **The trickiest bug, and the reason this is 5 files, not 1**:
   `_merge_relationships()` (in `extract_graph.py`) merges per-chunk
   relationship frames with a **hardcoded column list** in
   `.groupby().agg(...)`. Any column not named there is silently dropped —
   no error, no warning — even if the parser and schema are both patched
   correctly. This is the actual root cause if you find `label` reaching the
   parser but not the final parquet.
+- **Same bug, second occurrence, found while porting this patch to a live
+  fork**: `index/update/relationships.py::_update_and_merge_relationships`
+  (the incremental-indexing path) has its own independent hardcoded
+  `.groupby().agg({...})` column list, entirely separate from the one in
+  `extract_graph.py`. Adding `EDGE_LABEL` to `RELATIONSHIPS_FINAL_COLUMNS`
+  without patching this second call site makes the final
+  `.loc[:, RELATIONSHIPS_FINAL_COLUMNS]` selection raise
+  `KeyError: "['label'] not in index"` the first time an incremental update
+  runs — caught by `tests/unit/indexing/update/test_update_relationships.py`
+  (8 failures). Fixed the same way: add `label` to the aggregation
+  conditionally, then backfill `""` if still absent before the final column
+  selection. This is now file 5 (`patches/05-update_relationships.py.diff`).
 - **GraphML does not accept `None`/NaN as a data value.** `label`/
   `description` can be null on relationships that predate this feature or
   came from a non-LLM extractor (`extract_graph_nlp` never populates either
@@ -65,13 +84,15 @@ entirely by `snapshot_graphml.py`, which only ever included `weight` in
 
 | # | File | What |
 |---|---|---|
-| 1 | `graphrag/data_model/schemas.py` | New `EDGE_LABEL` constant, added to `RELATIONSHIPS_FINAL_COLUMNS` |
-| 2 | `graphrag/index/operations/extract_graph/graph_extractor.py` | Parser reads the optional 6th tuple field; `_empty_relationships_df()` includes the column |
-| 3 | `graphrag/index/operations/extract_graph/extract_graph.py` | `_merge_relationships()` preserves `label` through the groupby/agg instead of silently dropping it |
-| 4 | `graphrag/index/operations/snapshot_graphml.py` | `.graphml` export includes `label`/`description` (not just `weight`), with NaN-safe handling |
+| 1 | `packages/graphrag/graphrag/data_model/schemas.py` | New `EDGE_LABEL` constant, added to `RELATIONSHIPS_FINAL_COLUMNS` |
+| 2 | `packages/graphrag/graphrag/index/operations/extract_graph/graph_extractor.py` | Parser reads the optional 6th tuple field; `_empty_relationships_df()` includes the column |
+| 3 | `packages/graphrag/graphrag/index/operations/extract_graph/extract_graph.py` | `_merge_relationships()` preserves `label` through the groupby/agg instead of silently dropping it |
+| 4 | `packages/graphrag/graphrag/index/operations/snapshot_graphml.py` | `.graphml` export includes `label`/`description` (not just `weight`), with NaN-safe handling |
+| 5 | `packages/graphrag/graphrag/index/update/relationships.py` | `_update_and_merge_relationships()` (incremental-update path) preserves `label` the same way; backfills `""` if absent |
 
 Full diffs: `patches/01-schemas.py.diff`, `patches/02-graph_extractor.py.diff`,
-`patches/03-extract_graph.py.diff`, `patches/04-snapshot_graphml.py.diff`.
+`patches/03-extract_graph.py.diff`, `patches/04-snapshot_graphml.py.diff`,
+`patches/05-update_relationships.py.diff`.
 
 ## How to apply
 
@@ -79,8 +100,13 @@ Full diffs: `patches/01-schemas.py.diff`, `patches/02-graph_extractor.py.diff`,
 python3 apply-edge-label-patch.py   # ../scripts/apply-edge-label-patch.py — idempotent
 ```
 
-or apply the 4 diff files directly with `patch -p1` / `git apply` from a
-`graphrag` checkout.
+(the script currently reapplies files 1-4 against a pip-installed
+`graphrag` in site-packages; it does not yet cover file 5 since that patch
+was found later, on the incremental-update path — apply
+`patches/05-update_relationships.py.diff` by hand if patching a pip install
+that supports incremental indexing) or apply the 5 diff files directly with
+`patch -p1` / `git apply` from a `graphrag` monorepo checkout (paths are
+relative to the repo root, e.g. `packages/graphrag/graphrag/...`).
 
 ## Test evidence (real corpus, not synthetic)
 

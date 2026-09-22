@@ -25,6 +25,20 @@ Idempotente: nao aplica duas vezes.
 O comentario dentro do bloco `NEW` abaixo esta em ingles de proposito: e o
 texto que efetivamente entra no arquivo do pacote (destino de um PR
 upstream em github.com/BerriAI/litellm, um projeto em ingles).
+
+ATENCAO (verificado 2026-09-22 no fork Escola-de-Matematica-Aplicada/graphrag,
+que pina litellm==1.100.1): o texto-ancora (OLD) abaixo NAO bate mais com essa
+versao -- `Message.__init__` foi reescrito (agora usa `Final[dict[str, Any]]`,
+tem params dedicados `thinking_blocks`/`reasoning_content`/`reasoning_items`).
+Rodar este script contra litellm>=~1.100 falha de forma segura (`[FALHOU]`,
+exit 1, nao mexe no arquivo) -- nao assuma que "nao aplicou" significa "bug
+corrigido": `Message(content=[{"type": "reasoning", ...}, {"type": "text",
+...}])` chamado direto ainda lanca o mesmo `pydantic_core.ValidationError`
+nessa versao. Antes de reusar este patch numa versao nova do litellm,
+regenere OLD/NEW contra o `Message.__init__` atual (ou confirme que a camada
+de transformacao de resposta do provedor especifico ja separa o bloco de
+raciocinio antes de chegar em `Message(...)`, tornando o patch inteiro
+desnecessario).
 """
 
 import sys

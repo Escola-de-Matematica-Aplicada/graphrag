@@ -1,7 +1,7 @@
---- a/graphrag/index/operations/extract_graph/extract_graph.py
-+++ b/graphrag/index/operations/extract_graph/extract_graph.py
-@@ -117,13 +117,23 @@
- 
+--- a/packages/graphrag/graphrag/index/operations/extract_graph/extract_graph.py
++++ b/packages/graphrag/graphrag/index/operations/extract_graph/extract_graph.py
+@@ -117,13 +117,23 @@ def _merge_entities(entity_dfs) -> pd.DataFrame:
+
  def _merge_relationships(relationship_dfs) -> pd.DataFrame:
      all_relationships = pd.concat(relationship_dfs, ignore_index=False)
 +    # Base aggregation always present. Any extra optional per-relationship
