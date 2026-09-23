@@ -133,6 +133,18 @@ async def generate_indexing_prompts(
             docs=doc_list,
             json_mode=True,
         )
+    elif config.extract_graph.entity_types:
+        # discover_entity_types=False previously left entity_types=None
+        # unconditionally, silently discarding any fixed entity type list
+        # already configured for the project (extract_graph.entity_types in
+        # settings.yaml) and falling back to create_extract_graph_prompt's
+        # open-ended "suggest general categories" template instead of the
+        # fixed-list template. Honor the configured list when the caller
+        # asked NOT to auto-discover new types.
+        logger.info(
+            "Using configured entity types (discover_entity_types=False)..."
+        )
+        entity_types = config.extract_graph.entity_types
 
     logger.info("Generating entity relationship examples...")
     examples = await generate_entity_relationship_examples(
