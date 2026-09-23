@@ -128,9 +128,12 @@ def _merge_relationships(relationship_dfs) -> pd.DataFrame:
         "weight": ("weight", "sum"),
     }
     if "label" in all_relationships.columns:
-        # Same label repeats across duplicate (source, target) rows coming
-        # from different text chunks; keep the first non-empty occurrence.
-        agg["label"] = ("label", "first")
+        # Same (source, target) pair can come from several text chunks; not
+        # every chunk's completion emits the optional label field, so pick
+        # the first *non-empty* one instead of pandas "first" (which would
+        # keep an empty string from an earlier chunk over a real label from
+        # a later one).
+        agg["label"] = ("label", lambda values: next((v for v in values if v), ""))
     return (
         all_relationships
         .groupby(["source", "target"], sort=False)

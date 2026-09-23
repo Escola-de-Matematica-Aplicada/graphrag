@@ -132,6 +132,15 @@ class GraphExtractor:
         entities: list[dict[str, Any]] = []
         relationships: list[dict[str, Any]] = []
 
+        # `result` is the raw text of possibly several concatenated completions
+        # (one per gleaning round), joined with no separator in `_process_document`.
+        # Once the model emits COMPLETION_DELIMITER it considers itself done; any
+        # text after that point (e.g. a later gleaning round's reply, or the model
+        # rambling past its own "done" signal) has no record_delimiter separating
+        # it from the last real record, so it would otherwise merge into whatever
+        # field reads to the end of that record (weight) or a fixed index past the
+        # emitted fields (the optional relationship label). Cut it off first.
+        result = result.split(COMPLETION_DELIMITER, 1)[0]
         records = [r.strip() for r in result.split(record_delimiter)]
 
         for raw_record in records:
@@ -161,13 +170,17 @@ class GraphExtractor:
                     weight = float(record_attributes[-1])
                 except ValueError:
                     weight = 1.0
-                # Optional 6th tuple field: a short relationship label.
+                # Optional 6th tuple field: a short (~3-word) relationship label.
                 # It sits between `description` (fixed index 3, never moves)
                 # and `weight` (always read via [-1], so it stays robust to
                 # this extra field). Prompts that only emit the original
                 # 5-field tuple keep working unchanged (label = "").
+                # Models don't always honor the "three words" instruction
+                # exactly, so cap it defensively instead of trusting the
+                # prompt alone -- this is the only guard against a long
+                # label swamping the graphml edge display.
                 edge_label = (
-                    clean_str(record_attributes[4])
+                    " ".join(clean_str(record_attributes[4]).split()[:6])
                     if len(record_attributes) >= 6
                     else ""
                 )
